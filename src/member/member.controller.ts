@@ -1,53 +1,55 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
+ Controller,
+ Get,
+ Post,
+ Body,
+ Param
 } from '@nestjs/common';
+
 import { MemberService } from './member.service';
-import { CreateMemberDto } from './dto/member.dto';
-import { UpdateMemberDto } from './dto/update.dto';
+import { CreateMemberDto } from './dto/create-member.dto';
+
 
 @Controller('members')
 export class MemberController {
-  constructor(
-    private memberService: MemberService,
-  ) {}
 
-  @Post()
-  create(
-    @Body() dto: CreateMemberDto,
-  ) {
-    return this.memberService.create(dto);
-  }
 
-  @Get()
-  findAll() {
-    return this.memberService.findAll();
-  }
+constructor(
+ private service:MemberService
+){}
 
-  @Get(':id')
-  findOne(
-    @Param('id') id: string,
-  ) {
-    return this.memberService.findOne(id);
-  }
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateMemberDto,
-  ) {
-    return this.memberService.update(id, dto);
-  }
 
-  @Delete(':id')
-  remove(
-    @Param('id') id: string,
-  ) {
-    return this.memberService.remove(id);
-  }
+@Post()
+create(
+ @Body() dto:CreateMemberDto
+){
+
+ return this.service.create(dto);
+
+}
+
+
+
+
+@Get()
+findAll(){
+
+ return this.service.findAll();
+
+}
+
+
+
+
+@Get(':id')
+findOne(
+ @Param('id') id:string
+){
+
+ return this.service.findOne(id);
+
+}
+
+
 }

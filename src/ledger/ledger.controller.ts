@@ -1,38 +1,40 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
+ Controller,
+ Get,
+ Post,
+ Put,
+ Delete,
+ Body,
+ Param
 } from '@nestjs/common';
 
 
 import { LedgerService } from './ledger.service';
 
-import { CreateLedgerDto } from './dto/ledger.dto';
+import { CreateLedgerDto } from './dto/create-ledger.dto';
 
-import { UpdateLedgerDto } from './dto/update.dto';
+import { UpdateLedgerDto } from './dto/update-ledger.dto';
 
 
 
-@Controller('ledgers')
+@Controller('ledger')
 export class LedgerController {
 
 
+
 constructor(
- private ledgerService:LedgerService
+private service:LedgerService
 ){}
+
 
 
 
 @Post()
 create(
- @Body() dto:CreateLedgerDto
+@Body() dto:CreateLedgerDto
 ){
 
- return this.ledgerService.create(dto);
+return this.service.create(dto);
 
 }
 
@@ -41,7 +43,7 @@ create(
 @Get()
 findAll(){
 
- return this.ledgerService.findAll();
+return this.service.findAll();
 
 }
 
@@ -49,22 +51,22 @@ findAll(){
 
 @Get(':id')
 findOne(
- @Param('id') id:string
+@Param('id') id:string
 ){
 
- return this.ledgerService.findOne(id);
+return this.service.findOne(id);
 
 }
 
 
 
-@Patch(':id')
+@Put(':id')
 update(
- @Param('id') id:string,
- @Body() dto:UpdateLedgerDto
+@Param('id') id:string,
+@Body() dto:UpdateLedgerDto
 ){
 
- return this.ledgerService.update(id,dto);
+return this.service.update(id,dto);
 
 }
 
@@ -72,10 +74,10 @@ update(
 
 @Delete(':id')
 remove(
- @Param('id') id:string
+@Param('id') id:string
 ){
 
- return this.ledgerService.remove(id);
+return this.service.remove(id);
 
 }
 
