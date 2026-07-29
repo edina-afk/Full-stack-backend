@@ -5,7 +5,6 @@ import { UserModule } from './user/user.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { MemberModule } from './member/member.module';
 import { ConfigModule } from '@nestjs/config';
-import { MailerModule } from '@nestjs-modules/mailer';
 
 
 @Module({
@@ -20,19 +19,10 @@ import { MailerModule } from '@nestjs-modules/mailer';
     MemberModule,
     LedgerModule,
   ],
+
   controllers: [],
+
   providers: [],
+
 })
 export class AppModule {}
-
-MailerModule.forRoot({
-  transport: {
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  },
-});
