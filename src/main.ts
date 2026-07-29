@@ -9,9 +9,14 @@ async function bootstrap() {
    })
   );
 
-    app.enableCors({
-    origin: "http://localhost:3333",
-  });
+  app.enableCors({
+  origin: [
+    "http://localhost:3333",
+    "https://full-stack-frontend-bice.vercel.app"
+  ],
+  credentials: true,
+});  
+
   await app.listen(3000);
 }
 bootstrap();
