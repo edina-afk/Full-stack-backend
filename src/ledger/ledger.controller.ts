@@ -5,7 +5,8 @@ import {
  Put,
  Delete,
  Body,
- Param
+ Param,
+ Patch
 } from '@nestjs/common';
 
 
@@ -60,7 +61,7 @@ return this.service.findOne(id);
 
 
 
-@Put(':id')
+@Patch(':id')
 update(
 @Param('id') id:string,
 @Body() dto:UpdateLedgerDto
