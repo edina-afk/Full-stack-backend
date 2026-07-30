@@ -42,10 +42,7 @@ export class AuthService {
     const hash = await argon.hash(dto.password);
 
 
-    const otp = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
-
+     const otp = "123456";
 
     const user = await this.prisma.user.create({
 

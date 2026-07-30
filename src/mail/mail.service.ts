@@ -3,17 +3,18 @@ import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
+  private resend = new Resend(process.env.RESEND_API_KEY);
 
-  private resend = new Resend(
-    process.env.RESEND_API_KEY
-  );
+  async sendOtp(email: string, otp: string) {
+    // Development mode: don't send email
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('================================');
+      console.log(`OTP for ${email}: ${otp}`);
+      console.log('================================');
+      return;
+    }
 
-
-  async sendOtp(
-    email: string,
-    otp: string
-  ) {
-
+    // Production: send real email
     await this.resend.emails.send({
       from: 'onboarding@resend.dev',
       to: email,
@@ -24,7 +25,5 @@ export class MailService {
         <p>This code expires soon.</p>
       `,
     });
-
   }
-
 }
