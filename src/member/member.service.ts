@@ -27,13 +27,14 @@ create(dto:CreateMemberDto){
 
 
 // Dashboard
- async findAll() {
+async findAll() {
   return this.prisma.member.findMany({
     select: {
       id: true,
       fullName: true,
       phone: true,
       address: true,
+      createdAt: true,
       ledgers: true,
     },
     orderBy: {
@@ -41,7 +42,6 @@ create(dto:CreateMemberDto){
     },
   });
 }
-
 // View button
 
 async findOne(id:string){
