@@ -2,11 +2,16 @@ import {
  IsString,
  IsNumber,
  IsDateString,
- IsOptional
+ IsOptional,
+ IsNotEmpty
 } from 'class-validator';
 
 
 export class CreateLedgerDto {
+
+ @IsString()
+@IsNotEmpty()
+  receiptNo!: string;
 
 
 @IsString()

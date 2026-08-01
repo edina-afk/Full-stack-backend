@@ -61,7 +61,7 @@ export class LedgerService {
     return this.prisma.ledger.create({
 
       data: {
-
+        receiptNo: dto.receiptNo,
         memberId: dto.memberId,
 
         date: new Date(dto.date),
