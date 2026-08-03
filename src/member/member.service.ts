@@ -24,7 +24,19 @@ create(dto:CreateMemberDto){
 }
 
 
+async remove(id: string) {
+  await this.prisma.ledger.deleteMany({
+    where: {
+      memberId: id,
+    },
+  });
 
+  return this.prisma.member.delete({
+    where: {
+      id,
+    },
+  });
+}
 
 // Dashboard
 async findAll() {
