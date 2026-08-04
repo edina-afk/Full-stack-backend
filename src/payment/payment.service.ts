@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -7,56 +7,50 @@ export class PaymentService {
 
   async create(data: { ledgerId: string; amount: number; note?: string; date?: string }) {
     const amountNum = Number(data.amount);
+    
+    const paymentDate = data.date && !isNaN(Date.parse(data.date)) 
+      ? new Date(data.date) 
+      : new Date();
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Verify ledger exists
-      const ledger = await tx.ledger.findUnique({
-        where: { id: data.ledgerId },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const ledger = await tx.ledger.findUnique({
+          where: { id: data.ledgerId },
+        });
+
+        if (!ledger) {
+          throw new NotFoundException(`Ledger record ID ${data.ledgerId} not found`);
+        }
+
+        const payment = await tx.payment.create({
+          data: {
+            ledgerId: data.ledgerId,
+            amount: amountNum,
+            note: data.note || '',
+            date: paymentDate,
+          },
+        });
+
+        const updatedPaidAmount = Number(ledger.paidAmount || 0) + amountNum;
+
+        await tx.ledger.update({
+          where: { id: data.ledgerId },
+          data: {
+            paidAmount: updatedPaidAmount,
+          },
+        });
+
+        return payment;
       });
-
-      if (!ledger) {
-        throw new NotFoundException(`Ledger record with ID ${data.ledgerId} not found`);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
       }
+      console.error('Prisma Payment Error:', error);
 
-      // 2. Create individual payment record
-      const payment = await tx.payment.create({
-        data: {
-          ledgerId: data.ledgerId,
-          amount: amountNum,
-          note: data.note || data['bankPaymentEntry'] || '',
-          date: data.date ? new Date(data.date) : new Date(),
-        },
-      });
-
-      // 3. Update total paid amount on the parent ledger entry
-      const updatedPaidAmount = Number(ledger.paidAmount || 0) + amountNum;
-      
-      await tx.ledger.update({
-        where: { id: data.ledgerId },
-        data: {
-          paidAmount: updatedPaidAmount,
-        },
-      });
-
-      return payment;
-    });
-  }
-
-  findAll() {
-    return this.prisma.payment.findMany({
-      include: {
-        ledger: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
-
-  findByLedger(ledgerId: string) {
-    return this.prisma.payment.findMany({
-      where: { ledgerId },
-      orderBy: { date: 'desc' },
-    });
+      // Safe check for error.message
+      const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
+      throw new InternalServerErrorException(errorMessage);
+    }
   }
 }
