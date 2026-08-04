@@ -33,4 +33,11 @@ export class MemberController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Get("check-receipt/:receiptNo")
+checkReceipt(
+  @Param("receiptNo") receiptNo:string
+){
+  return this.service.checkReceipt(receiptNo);
+}
 }

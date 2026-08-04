@@ -5,6 +5,7 @@ import { UserModule } from './user/user.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { MemberModule } from './member/member.module';
 import { ConfigModule } from '@nestjs/config';
+import { PaymentModule } from './payment/payment.module';
 
 
 @Module({
@@ -18,6 +19,7 @@ import { ConfigModule } from '@nestjs/config';
     UserModule,
     MemberModule,
     LedgerModule,
+    PaymentModule,
   ],
 
   controllers: [],

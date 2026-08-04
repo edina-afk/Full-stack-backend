@@ -19,4 +19,9 @@ export class CreateMemberDto {
  @IsString()
  address?: string;
 
+
+ // Add receipt number
+ @IsString()
+ receiptNo!: string;
+
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 
@@ -12,17 +12,44 @@ constructor(
 ){}
 
 
+async create(dto: CreateMemberDto) {
 
-create(dto:CreateMemberDto){
+  // Check receipt number first
+  const existingReceipt = await this.prisma.member.findUnique({
+    where: {
+      receiptNo: dto.receiptNo,
+    },
+  });
 
- return this.prisma.member.create({
 
-  data:dto
+  if (existingReceipt) {
+    throw new BadRequestException(
+      "Receipt number already exists"
+    );
+  }
 
- });
+
+  // Create member if receipt is unique
+  return this.prisma.member.create({
+    data: dto,
+  });
 
 }
 
+async checkReceipt(receiptNo:string){
+
+ const member = await this.prisma.member.findUnique({
+  where:{
+    receiptNo
+  }
+ });
+
+
+ return {
+  exists: !!member
+ };
+
+}
 
 async remove(id: string) {
   await this.prisma.ledger.deleteMany({

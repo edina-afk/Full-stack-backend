@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+   BadRequestException
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,80 +20,66 @@ export class LedgerService {
   ) {}
 
 
-
-  // CREATE LEDGER
-  async create(dto: CreateLedgerDto) {
+ async create(dto: CreateLedgerDto) {
 
 
-    const member = await this.prisma.member.findUnique({
-
-      where: {
-        id: dto.memberId,
-      },
-
-    });
-
-
-
-    if (!member) {
-
-      throw new NotFoundException(
-        'Member not found'
-      );
-
+  // Check receipt number before create
+  const existingReceipt = await this.prisma.ledger.findUnique({
+    where:{
+      receiptNo: dto.receiptNo
     }
+  });
 
 
-
-    // quantity × unit price
-
-    const totalPrice =
-      dto.quantity * Number(dto.unitPrice);
-
-
-
-    // total price - paid amount
-
-    const remaining =
-      totalPrice - Number(dto.paidAmount);
-
-
-
-    return this.prisma.ledger.create({
-
-      data: {
-        receiptNo: dto.receiptNo,
-        memberId: dto.memberId,
-
-        date: new Date(dto.date),
-
-        itemName: dto.itemName,
-
-        quantity: dto.quantity,
-
-        unitPrice: dto.unitPrice,
-
-        totalPrice,
-
-        paidAmount: dto.paidAmount,
-
-        remaining,
-
-        note: dto.note,
-
-      },
-
-
-      include: {
-
-        member: true,
-
-      },
-
-    });
-
+  if(existingReceipt){
+    throw new BadRequestException(
+      "Receipt number already used"
+    );
   }
 
+
+
+  const member = await this.prisma.member.findUnique({
+    where:{
+      id:dto.memberId
+    }
+  });
+
+
+  if(!member){
+    throw new NotFoundException(
+      "Member not found"
+    );
+  }
+
+
+  const totalPrice =
+    dto.quantity * Number(dto.unitPrice);
+
+
+  const remaining =
+    totalPrice - Number(dto.paidAmount);
+
+
+  return this.prisma.ledger.create({
+    data:{
+      receiptNo:dto.receiptNo,
+      memberId:dto.memberId,
+      date:new Date(dto.date),
+      itemName:dto.itemName,
+      quantity:dto.quantity,
+      unitPrice:dto.unitPrice,
+      totalPrice,
+      paidAmount:dto.paidAmount,
+      remaining,
+      note:dto.note
+    },
+    include:{
+      member:true
+    }
+  });
+
+}
 
 
 
