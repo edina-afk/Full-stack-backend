@@ -93,6 +93,8 @@ export class LedgerService {
       include: {
 
         member: true,
+        payments: true,
+
 
       },
 
@@ -127,6 +129,8 @@ export class LedgerService {
         include: {
 
           member: true,
+          payments: true,
+
 
         },
 
@@ -231,6 +235,8 @@ export class LedgerService {
       include: {
 
         member: true,
+        payments: true,
+
 
       },
 
