@@ -250,9 +250,9 @@ export class LedgerService {
 
   // DELETE LEDGER
 
-async remove(id: string) {
+ async remove(id: string) {
 
-  // delete payments connected to this ledger first
+  // delete payments connected to this ledger
   await this.prisma.payment.deleteMany({
     where: {
       ledgerId: id,
@@ -260,7 +260,7 @@ async remove(id: string) {
   });
 
 
-  // then delete ledger
+  // delete ledger after payments are removed
   return this.prisma.ledger.delete({
     where: {
       id,
@@ -268,7 +268,5 @@ async remove(id: string) {
   });
 
 }
- 
-
 
 }
