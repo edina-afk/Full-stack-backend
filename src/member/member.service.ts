@@ -85,34 +85,34 @@ async findAll() {
 
 async findOne(id:string){
 
-
  const member = await this.prisma.member.findUnique({
 
   where:{
-   id:id
+    id
   },
 
-
   include:{
-   ledgers:true
+    ledgers:{
+      include:{
+        payments:true
+      },
+      orderBy:{
+        date:"desc"
+      }
+    }
   }
 
  });
 
-
-
  if(!member){
 
   throw new NotFoundException(
-   "Member not found"
+    "Member not found"
   );
 
  }
 
-
-
  return member;
-
 
 }
 
