@@ -11,7 +11,7 @@ export class CreatePaymentDto {
 
   @IsString()
   @IsOptional()
-  note?: string;
+  bankPaymentEntry?: string;
 
   @IsDateString()
   @IsOptional()
