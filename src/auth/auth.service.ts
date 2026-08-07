@@ -20,7 +20,7 @@ export class AuthService {
     private jwt: JwtService,
     private config: ConfigService,
     private mailService: MailService,
-  ) {}
+  ) { }
 
 
   async signup(dto: AuthDto) {
@@ -42,7 +42,7 @@ export class AuthService {
     const hash = await argon.hash(dto.password);
 
 
-     const otp = "123456";
+    const otp = "123456";
 
     const user = await this.prisma.user.create({
 
@@ -85,7 +85,7 @@ export class AuthService {
   }
 
 
- async signin(dto: SigninDto) {
+   async signin(dto: SigninDto) {
   const user = await this.prisma.user.findUnique({
     where: {
       email: dto.email,
@@ -105,10 +105,12 @@ export class AuthService {
     throw new ForbiddenException("Invalid credentials");
   }
 
-  const token = await this.signToken(
-    user.id,
-    user.email,
-  );
+   const token = await this.signToken(
+ user.id,
+ user.email,
+ user.role
+);
+
 
   return {
     access_token: token.access_token,
@@ -117,113 +119,117 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      role: user.role,
     },
   };
 }
+    
+  async getMe(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
 
-async getMe(userId: number) {
-  const user = await this.prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      createdAt: true,
-    },
-  });
+    if (!user) {
+      throw new ForbiddenException("User not found");
+    }
 
-  if (!user) {
-    throw new ForbiddenException("User not found");
+    return user;
   }
 
-  return user;
-}
-
-async updateProfile(
-  userId: number,
-  data: {
-    firstName?: string;
-    lastName?: string;
-  },
-) {
-  return this.prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data,
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-    },
-  });
-}
- 
-async verifyOtp(dto: VerifyOtpDto) {
-
-  console.log("VERIFY OTP FUNCTION RUNNING");
-  const user = await this.prisma.user.findUnique({
-    where: {
-      email: dto.email,
-    },
-  });
-
-  if (!user) {
-    throw new ForbiddenException("User not found");
-  }
-
-  if (user.otpCode !== dto.otp) {
-    throw new ForbiddenException("Invalid OTP");
-  }
-
-  if (!user.otpExpires || user.otpExpires < new Date()) {
-    throw new ForbiddenException("OTP expired");
-  }
-
-  await this.prisma.user.update({
-    where: {
-      email: dto.email,
-    },
+  async updateProfile(
+    userId: number,
     data: {
-      otpCode: null,
-      otpExpires: null,
+      firstName?: string;
+      lastName?: string;
     },
-  });
+  ) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+  }
+
+  async verifyOtp(dto: VerifyOtpDto) {
+
+    console.log("VERIFY OTP FUNCTION RUNNING");
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
+
+    if (!user) {
+      throw new ForbiddenException("User not found");
+    }
+
+    if (user.otpCode !== dto.otp) {
+      throw new ForbiddenException("Invalid OTP");
+    }
+
+    if (!user.otpExpires || user.otpExpires < new Date()) {
+      throw new ForbiddenException("OTP expired");
+    }
+
+    await this.prisma.user.update({
+      where: {
+        email: dto.email,
+      },
+      data: {
+        otpCode: null,
+        otpExpires: null,
+      },
+    });
 
 
-  const token = await this.signToken(
-    user.id,
-    user.email,
-  );
+     const token = await this.signToken(
+  user.id,
+  user.email,
+  user.role
+);
 
 
-  console.log("VERIFY USER:", user);
+    console.log("VERIFY USER:", user);
 
-
-  return {
-    access_token: token.access_token,
-
-    user: {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-    },
-  };
-}
+    return {
+      access_token: token.access_token,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
+  
   async signToken(
-    userId:number,
-    email:string
-  ):Promise<{access_token:string}>{
+userId:number,
+email:string,
+role:string
+): Promise<{ access_token: string }> {
 
 
     const payload = {
 
-      sub:userId,
+      sub: userId,
 
       email,
 
@@ -242,7 +248,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
       {
 
-        expiresIn:"15m",
+        expiresIn: "15m",
 
         secret,
 
@@ -260,17 +266,17 @@ async verifyOtp(dto: VerifyOtpDto) {
 
   }
 
- 
 
 
-  async forgotPassword(dto: ForgotPasswordDto){
+
+  async forgotPassword(dto: ForgotPasswordDto) {
 
 
     const user = await this.prisma.user.findUnique({
 
-      where:{
+      where: {
 
-        email:dto.email
+        email: dto.email
 
       }
 
@@ -278,7 +284,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
 
 
-    if(!user){
+    if (!user) {
 
       throw new ForbiddenException(
         "User not found"
@@ -306,17 +312,17 @@ async verifyOtp(dto: VerifyOtpDto) {
 
     await this.prisma.user.update({
 
-      where:{
+      where: {
 
-        email:dto.email
+        email: dto.email
 
       },
 
-      data:{
+      data: {
 
-        otpCode:otp,
+        otpCode: otp,
 
-        otpExpires:expires
+        otpExpires: expires
 
       }
 
@@ -337,7 +343,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
     return {
 
-      message:"OTP sent to your email"
+      message: "OTP sent to your email"
 
     };
 
@@ -347,14 +353,14 @@ async verifyOtp(dto: VerifyOtpDto) {
 
 
 
-  async resetPassword(dto: ResetPasswordDto){
+  async resetPassword(dto: ResetPasswordDto) {
 
 
     const user = await this.prisma.user.findUnique({
 
-      where:{
+      where: {
 
-        email:dto.email
+        email: dto.email
 
       }
 
@@ -362,7 +368,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
 
 
-    if(!user){
+    if (!user) {
 
       throw new ForbiddenException(
         "User not found"
@@ -372,7 +378,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
 
 
-    if(user.otpCode !== dto.otp){
+    if (user.otpCode !== dto.otp) {
 
       throw new ForbiddenException(
         "Invalid OTP"
@@ -382,10 +388,10 @@ async verifyOtp(dto: VerifyOtpDto) {
 
 
 
-    if(
+    if (
       !user.otpExpires ||
       user.otpExpires < new Date()
-    ){
+    ) {
 
       throw new ForbiddenException(
         "OTP expired"
@@ -405,19 +411,19 @@ async verifyOtp(dto: VerifyOtpDto) {
 
     await this.prisma.user.update({
 
-      where:{
+      where: {
 
-        email:dto.email
+        email: dto.email
 
       },
 
-      data:{
+      data: {
 
         hash,
 
-        otpCode:null,
+        otpCode: null,
 
-        otpExpires:null
+        otpExpires: null
 
       }
 
@@ -427,7 +433,7 @@ async verifyOtp(dto: VerifyOtpDto) {
 
     return {
 
-      message:"Password reset successfully"
+      message: "Password reset successfully"
 
     };
 
