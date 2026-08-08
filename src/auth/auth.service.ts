@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as argon from "argon2";
+import * as bcrypt from "bcrypt";
 import { AuthDto } from '../dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -39,7 +39,7 @@ export class AuthService {
     }
 
 
-    const hash = await argon.hash(dto.password);
+   const hash = await bcrypt.hash(dto.password, 10);
 
 
     const otp = "123456";
@@ -96,10 +96,10 @@ export class AuthService {
     throw new ForbiddenException("Invalid credentials");
   }
 
-  const passwordMatch = await argon.verify(
-    user.hash,
-    dto.password,
-  );
+   const passwordMatch = await bcrypt.compare(
+  dto.password,
+  user.hash,
+);
 
   if (!passwordMatch) {
     throw new ForbiddenException("Invalid credentials");
@@ -401,12 +401,7 @@ role:string
 
 
 
-    const hash = await argon.hash(
-
-      dto.newPassword
-
-    );
-
+    const hash = await bcrypt.hash(dto.newPassword, 10);
 
 
     await this.prisma.user.update({
