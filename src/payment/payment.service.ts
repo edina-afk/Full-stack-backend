@@ -1,60 +1,85 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { DatabaseService } from '../database/database.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
- 
 
 @Injectable()
 export class PaymentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DatabaseService) {}
 
   async create(data: CreatePaymentDto) {
-    console.log("Incoming payment:", data);
+    console.log('Incoming payment:', data);
 
     const paymentDate =
       data.date && !isNaN(Date.parse(data.date))
         ? new Date(data.date)
         : new Date();
 
+    const client = await this.db.getClient();
+
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      await client.query('BEGIN');
 
-        const ledger = await tx.ledger.findUnique({
-          where: {
-            id: data.ledgerId,
-          },
-        });
+      // Check ledger exists
+      const ledgerResult = await client.query(
+        `SELECT id
+         FROM "Ledger"
+         WHERE id = $1
+         LIMIT 1`,
+        [data.ledgerId],
+      );
 
+      const ledger = ledgerResult.rows[0];
 
-        if (!ledger) {
-          throw new NotFoundException(
-            `Ledger ${data.ledgerId} not found`
-          );
-        }
+      if (!ledger) {
+        throw new NotFoundException(
+          `Ledger ${data.ledgerId} not found`,
+        );
+      }
 
+      // Create payment
+      const paymentResult = await client.query(
+        `INSERT INTO "Payment"
+         (
+           id,
+           "ledgerId",
+           amount,
+           "bankPaymentEntry",
+           date,
+           "createdAt"
+         )
+         VALUES
+         (
+           gen_random_uuid()::text,
+           $1,
+           $2,
+           $3,
+           $4,
+           NOW()
+         )
+         RETURNING *`,
+        [
+          data.ledgerId,
+          Number(data.amount),
+          data.bankPaymentEntry ?? '',
+          paymentDate,
+        ],
+      );
 
-        // ONLY CREATE PAYMENT ROW
-        const payment = await tx.payment.create({
-          data: {
-            ledgerId: data.ledgerId,
+      await client.query('COMMIT');
 
-            amount: Number(data.amount),
+      return paymentResult.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
 
-            bankPaymentEntry:
-              data.bankPaymentEntry ?? "",
+      console.error('FULL ERROR:', error);
 
-            date: paymentDate,
-          },
-        });
-
-
-        return payment;
-      });
-
-    } catch(error) {
-
-      console.error("FULL ERROR:", error);
       throw error;
-
+    } finally {
+      client.release();
     }
   }
 }
