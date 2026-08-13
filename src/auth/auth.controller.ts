@@ -11,6 +11,10 @@ import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { SigninDto } from '../dto/signin.dto';
 import { CreateAdminDto } from '../dto/create-admin.dto';
+import { UseGuards, Request } from '@nestjs/common';
+import { JwtGuard } from './jwt.guard';
+import { Roles } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -66,10 +70,10 @@ export class AuthController {
   // CREATE ADMIN
   // =========================
   @Post('create-admin')
-  createAdmin(@Body() dto: CreateAdminDto) {
-    return this.authService.createAdmin(
-      dto,
-      dto.superAdminEmail,
-    );
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('SUPERADMIN')
+  createAdmin(@Body() dto: CreateAdminDto, @Request() req: any) {
+    const requesterEmail = req.user?.email;
+    return this.authService.createAdmin(dto, requesterEmail);
   }
 }

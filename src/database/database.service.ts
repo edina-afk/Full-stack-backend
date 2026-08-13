@@ -20,11 +20,18 @@ export class DatabaseService
   constructor(
     private readonly config: ConfigService,
   ) {
+    const connectionString = this.config.get<string>(
+      'DATABASE_URL',
+    );
+
+    if (!connectionString) {
+      throw new Error(
+        'DATABASE_URL environment variable is missing. Set it in cPanel environment variables.',
+      );
+    }
+
     this.pool = new Pool({
-      connectionString:
-        this.config.get<string>(
-          'DATABASE_URL',
-        ),
+      connectionString: connectionString,
       ssl: {
         rejectUnauthorized: false,
       },

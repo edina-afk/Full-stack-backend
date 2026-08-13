@@ -8,6 +8,7 @@ import { DatabaseService } from '../database/database.service';
 
 import { CreateLedgerDto } from './dto/create-ledger.dto';
 import { UpdateLedgerDto } from './dto/update-ledger.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class LedgerService {
@@ -51,6 +52,8 @@ export class LedgerService {
     const remaining =
       totalPrice - Number(dto.paidAmount);
 
+    const id = randomUUID();
+
     const result = await this.db.query(
       `INSERT INTO "Ledger"
        (
@@ -70,7 +73,6 @@ export class LedgerService {
        )
        VALUES
        (
-         gen_random_uuid()::text,
          $1,
          $2,
          $3,
@@ -81,11 +83,13 @@ export class LedgerService {
          $8,
          $9,
          $10,
+         $11,
          NOW(),
          NOW()
        )
        RETURNING *`,
       [
+        id,
         dto.receiptNo,
         dto.memberId,
         new Date(dto.date),

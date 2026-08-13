@@ -38,12 +38,16 @@ export class RolesGuard implements CanActivate {
 
         const user = request.user;
 
+            const normalize = (r?: string) =>
+                (r || '').toString().toUpperCase().replace(/[^A-Z]/g, '');
 
-        if (!requiredRoles.includes(user.role)) {
-            throw new ForbiddenException(
-                "No permission"
-            );
-        }
+            const userRole = normalize(user?.role);
+
+            const ok = requiredRoles.some((rr) => normalize(rr) === userRole);
+
+            if (!ok) {
+                throw new ForbiddenException('No permission');
+            }
 
 
         return true;

@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+   ForbiddenException,
 } from '@nestjs/common';
 
 import { DatabaseService } from '../database/database.service';
 import { CreateMemberDto } from './dto/create-member.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class MemberService {
@@ -29,6 +31,8 @@ export class MemberService {
     }
 
     // Create member
+    const id = randomUUID();
+
     const result = await this.db.query(
       `INSERT INTO "Member"
        (
@@ -42,16 +46,17 @@ export class MemberService {
        )
        VALUES
        (
-         gen_random_uuid()::text,
          $1,
          $2,
          $3,
          $4,
+         $5,
          NOW(),
          NOW()
        )
        RETURNING *`,
       [
+        id,
         dto.fullName,
         dto.phone,
         dto.address || null,
@@ -78,41 +83,61 @@ export class MemberService {
   }
 
   // DELETE MEMBER
-  async remove(id: string) {
+   async remove(id: string, userRole: string) {
+  const normalize = (r?: string) => (r || '').toString().toUpperCase().replace(/[^A-Z]/g, '');
+  if (normalize(userRole) !== 'SUPERADMIN') {
+    throw new ForbiddenException('Only SUPERADMIN can delete members');
+  }
+
+  const client = await this.db.getClient();
+
+  try {
+    const start = Date.now();
+    console.log(`[member.remove] starting transaction for member ${id}`);
+    await client.query('BEGIN');
+
     // Delete payments belonging to member's ledgers
-    await this.db.query(
+    const payRes = await client.query(
       `DELETE FROM "Payment"
        WHERE "ledgerId" IN (
-         SELECT id
-         FROM "Ledger"
-         WHERE "memberId" = $1
+         SELECT id FROM "Ledger" WHERE "memberId" = $1
        )`,
       [id],
     );
+    console.log(`[member.remove] deleted payments count=${payRes.rowCount}`);
 
     // Delete ledgers
-    await this.db.query(
-      `DELETE FROM "Ledger"
-       WHERE "memberId" = $1`,
+    const ledRes = await client.query(
+      `DELETE FROM "Ledger" WHERE "memberId" = $1`,
       [id],
     );
+    console.log(`[member.remove] deleted ledgers count=${ledRes.rowCount}`);
 
     // Delete member
-    const result = await this.db.query(
-      `DELETE FROM "Member"
-       WHERE id = $1
-       RETURNING *`,
+    const result = await client.query(
+      `DELETE FROM "Member" WHERE id = $1 RETURNING *`,
       [id],
     );
+    console.log(`[member.remove] deleted member rows=${result.rowCount}`);
 
     if (result.rows.length === 0) {
-      throw new NotFoundException(
-        'Member not found',
-      );
+      await client.query('ROLLBACK');
+      throw new NotFoundException('Member not found');
     }
 
+    await client.query('COMMIT');
+    const dur = Date.now() - start;
+    console.log(`[member.remove] transaction committed for ${id} duration=${dur}ms`);
+
     return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[member.remove] error, rolled back', (err as any).message || err);
+    throw err;
+  } finally {
+    client.release();
   }
+}
 
   // DASHBOARD
   async findAll() {

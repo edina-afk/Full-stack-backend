@@ -5,6 +5,7 @@ import {
 
 import { DatabaseService } from '../database/database.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class PaymentService {
@@ -41,6 +42,8 @@ export class PaymentService {
       }
 
       // Create payment
+      const id = randomUUID();
+
       const paymentResult = await client.query(
         `INSERT INTO "Payment"
          (
@@ -53,15 +56,16 @@ export class PaymentService {
          )
          VALUES
          (
-           gen_random_uuid()::text,
            $1,
            $2,
            $3,
            $4,
+           $5,
            NOW()
          )
          RETURNING *`,
         [
+          id,
           data.ledgerId,
           Number(data.amount),
           data.bankPaymentEntry ?? '',

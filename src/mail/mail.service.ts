@@ -3,7 +3,20 @@ import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
-  private resend = new Resend(process.env.RESEND_API_KEY);
+  private resend?: Resend;
+
+  constructor() {
+    if (process.env.NODE_ENV === 'production') {
+      const key = process.env.RESEND_API_KEY;
+      if (!key) {
+        throw new Error(
+          'RESEND_API_KEY is required in production environment',
+        );
+      }
+
+      this.resend = new Resend(key);
+    }
+  }
 
   async sendOtp(email: string, otp: string) {
     // Development mode: don't send email
@@ -13,8 +26,11 @@ export class MailService {
       console.log('================================');
       return;
     }
-
     // Production: send real email
+    if (!this.resend) {
+      throw new Error('Resend client not initialized');
+    }
+
     await this.resend.emails.send({
       from: 'onboarding@resend.dev',
       to: email,

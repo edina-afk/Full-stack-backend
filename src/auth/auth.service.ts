@@ -24,7 +24,72 @@ export class AuthService {
   ) {}
 
   async signup(dto: AuthDto) {
-    // Check existing email
+    // Only allow initializing the first SUPER_ADMIN via signup when none exists.
+    const superResult = await this.db.query(
+      `SELECT id FROM "User" WHERE role = $1 LIMIT 1`,
+      ['SUPER_ADMIN'],
+    );
+
+    if (superResult.rows.length === 0) {
+      // No superadmin exists => allow creating the initial SUPER_ADMIN
+      const existingUser = await this.db.query(
+        `SELECT id FROM "User" WHERE email = $1 LIMIT 1`,
+        [dto.email],
+      );
+
+      if (existingUser.rows.length > 0) {
+        throw new BadRequestException('Email already exists');
+      }
+
+      const hash = await bcrypt.hash(dto.password, 10);
+
+      const result = await this.db.query(
+        `INSERT INTO "User" (email, hash, "firstName", "lastName", role, "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,'SUPER_ADMIN',NOW(),NOW()) RETURNING id,email,"firstName","lastName",role`,
+        [dto.email, hash, dto.firstName, dto.lastName || null],
+      );
+
+      return { message: 'Initial SUPER_ADMIN created', email: result.rows[0].email };
+    }
+
+    // Otherwise public signup is disabled
+    throw new ForbiddenException('Public signup disabled. Contact SUPERADMIN.');
+  }
+async createAdmin(
+  dto: AuthDto,
+  superAdminEmail: string,
+) {
+    // 1. Check that the requester is SUPERADMIN
+    const superAdminResult = await this.db.query(
+      `SELECT id, email, role
+       FROM "User"
+       WHERE email = $1
+       LIMIT 1`,
+      [superAdminEmail],
+    );
+
+    const superAdmin = superAdminResult.rows[0];
+
+    if (!superAdmin) {
+      throw new ForbiddenException('Superadmin not found');
+    }
+
+    const normalize = (r?: string) => (r || '').toString().toUpperCase().replace(/[^A-Z]/g, '');
+
+    if (normalize(superAdmin.role) !== 'SUPERADMIN') {
+      throw new ForbiddenException('Only SUPERADMIN can create admins');
+    }
+
+    // 2. Check number of admins (max 2)
+    const adminCount = await this.db.query(
+      `SELECT count(*)::int as cnt FROM "User" WHERE role = $1`,
+      ['ADMIN'],
+    );
+
+    if (adminCount.rows[0].cnt >= 2) {
+      throw new BadRequestException('Maximum number of ADMIN accounts reached');
+    }
+
+    // 3. Check if email already exists
     const existingUser = await this.db.query(
       `SELECT id FROM "User" WHERE email = $1 LIMIT 1`,
       [dto.email],
@@ -34,151 +99,15 @@ export class AuthService {
       throw new BadRequestException('Email already exists');
     }
 
+    // 4. Hash password and create ADMIN
     const hash = await bcrypt.hash(dto.password, 10);
 
-    const otp = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
-
-    const otpExpires = new Date(
-      Date.now() + 10 * 60 * 1000,
-    );
-
     const result = await this.db.query(
-      `INSERT INTO "User"
-        (email, hash, "firstName", "lastName", role, "otpCode", "otpExpires", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, 'ADMIN', $5, $6, NOW(), NOW())
-       RETURNING id, email, "firstName", "lastName", role`,
-      [
-        dto.email,
-        hash,
-        dto.firstName,
-        dto.lastName || null,
-        otp,
-        otpExpires,
-      ],
+      `INSERT INTO "User" (email, hash, "firstName", "lastName", role, "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,'ADMIN',NOW(),NOW()) RETURNING id,email,"firstName","lastName",role`,
+      [dto.email, hash, dto.firstName, dto.lastName || null],
     );
 
-    const user = result.rows[0];
-
-    await this.mailService.sendOtp(user.email, otp);
-
-    return {
-      message: 'OTP sent',
-      email: user.email,
-    };
-  }
-async createAdmin(
-  dto: AuthDto,
-  superAdminEmail: string,
-) {
-  // 1. Check that the requester is SUPERADMIN
-  const superAdminResult = await this.db.query(
-    `SELECT id, email, role
-     FROM "User"
-     WHERE email = $1
-     LIMIT 1`,
-    [superAdminEmail],
-  );
-
-  const superAdmin = superAdminResult.rows[0];
-
-  if (!superAdmin) {
-    throw new ForbiddenException(
-      'Superadmin not found',
-    );
-  }
-
-  if (superAdmin.role !== 'SUPERADMIN') {
-    throw new ForbiddenException(
-      'Only SUPERADMIN can create admins',
-    );
-  }
-
-  // 2. Check if email already exists
-  const existingUser = await this.db.query(
-    `SELECT id
-     FROM "User"
-     WHERE email = $1
-     LIMIT 1`,
-    [dto.email],
-  );
-
-  if (existingUser.rows.length > 0) {
-    throw new BadRequestException(
-      'Email already exists',
-    );
-  }
-
-  // 3. Hash password
-  const hash = await bcrypt.hash(
-    dto.password,
-    10,
-  );
-
-  // 4. Generate OTP
-  const otp = Math.floor(
-    100000 + Math.random() * 900000,
-  ).toString();
-
-  const otpExpires = new Date(
-    Date.now() + 10 * 60 * 1000,
-  );
-
-  // 5. Create ADMIN
-  const result = await this.db.query(
-    `INSERT INTO "User"
-      (
-        email,
-        hash,
-        "firstName",
-        "lastName",
-        role,
-        "otpCode",
-        "otpExpires",
-        "createdAt",
-        "updatedAt"
-      )
-     VALUES
-      (
-        $1,
-        $2,
-        $3,
-        $4,
-        'ADMIN',
-        $5,
-        $6,
-        NOW(),
-        NOW()
-      )
-     RETURNING
-       id,
-       email,
-       "firstName",
-       "lastName",
-       role`,
-    [
-      dto.email,
-      hash,
-      dto.firstName,
-      dto.lastName || null,
-      otp,
-      otpExpires,
-    ],
-  );
-
-  const admin = result.rows[0];
-
-  // 6. Send OTP to the new ADMIN
-  await this.mailService.sendOtp(
-    admin.email,
-    otp,
-  );
-
-  return {
-    message: 'Admin created. OTP sent.',
-    email: admin.email,
-  };
+    return { message: 'Admin created', email: result.rows[0].email };
 }
   async signin(dto: SigninDto) {
     const result = await this.db.query(
@@ -457,4 +386,39 @@ async createAdmin(
       message: 'Password reset successfully',
     };
   }
+  async createInitialSuperAdmin() {
+  const email = this.config.get<string>('SUPERADMIN_EMAIL');
+  const password = this.config.get<string>('SUPERADMIN_PASSWORD');
+
+  if (!email || !password) {
+    console.log('SUPERADMIN_EMAIL or SUPERADMIN_PASSWORD is missing');
+    return;
+  }
+
+  const existing = await this.db.query(
+    `SELECT id FROM "User" WHERE email = $1 LIMIT 1`,
+    [email],
+  );
+
+  if (existing.rows.length > 0) {
+    console.log('SUPER_ADMIN already exists:', email);
+    return;
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  await this.db.query(
+    `INSERT INTO "User"
+      (email, hash, "firstName", "lastName", role, "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, 'SUPER_ADMIN', NOW(), NOW())`,
+    [
+      email,
+      hash,
+      'Eyu',
+      'Fikadu',
+    ],
+  );
+
+  console.log('Initial SUPER_ADMIN created:', email);
+}
 }
